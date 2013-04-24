@@ -46,7 +46,7 @@ The code has also been fully tested for correct functionality and performance.
 
 ##Licensing and usage information
 
-LevenshteinAutomaton is licensed under the GNU General Public License (version 3). Licensing for proprietary software is available at a cost, inquire for more details. 
+LevenshteinAutomaton is licensed under the Apache License, Version 2.0.
 
 Informally, It'd be great to be notified of any derivatives or forks (or even better, issues or refactoring points that may inspire one)!
 
