@@ -43,8 +43,12 @@ public class ParametricState
     //is based off a State position array, its values may not necessarily be stored in ascending order.
     private final int memberPositionEArray[];
     
-    //Int denoting the difference between the minimal boundaries of a State of this form and 
-    //that of a given State which has transitioned such a State. This value is dependant on 
+    //Array of booleans containing values each denoting the transposition position 
+    //status of a member position in a state of this form.
+    private final boolean memberPositionTArray[];
+    
+    //Int denoting the difference between the minimal boundary of a State of this form and 
+    //that of a given State which has a transition such a State. This value is dependant on 
     //the transitioning state as well as the characterisitc vector of its relevant subword.
     private int transitionBoundaryOffset = 0;
     
@@ -62,14 +66,16 @@ public class ParametricState
         int memberPositionCount = stateMemberPositionArray.length;
         memberPositionBoundaryOffsetArray = new int[memberPositionCount];
         memberPositionEArray = new int[memberPositionCount];
+        memberPositionTArray = new boolean[memberPositionCount];
         
         //Loop through stateMemberPositionArray (which contains positions sorted in ascending order),
-        //inserting the relative (from the minimal boundary) boundaries and absolute edit distance values
-        //in to the corresponding indices of the relevant arrays 
+        //inserting the relative (from the minimal boundary) boundaries and absolute edit distance 
+        //and T values in to the corresponding indices of the relevant arrays 
         for(int i = 0; i < memberPositionCount; i++)
         {
             memberPositionBoundaryOffsetArray[i] = stateMemberPositionArray[i].getI() - stateMemberPositionArray[0].getI();
             memberPositionEArray[i] = stateMemberPositionArray[i].getE();
+            memberPositionTArray[i] = stateMemberPositionArray[i].getT();
         }
         /////
     }
@@ -78,6 +84,7 @@ public class ParametricState
     
     /**
      * Constructs a ParametricState from a State and sets its transition boundary offset.
+     
      * @param state                         a State object
      * @param transitionBoundaryOffset      an int of the difference between the minimal boundary of {@code state}
      *                                      and that of a State that would be the result of an instantiation 
@@ -106,9 +113,8 @@ public class ParametricState
     /**
      * Returns the this ParametricState's transition boundary offset.
      
-     * @return      an int denoting the difference between the minimal boundaries of a State of this form
-     *              and that of a State that has has a transition to it (this value is only of use when
-     *              dealing with a State of the same form as that which was used to create this ParametricState)
+     * @return      an int denoting the difference between the minimal boundary of a  
+     *              State of this form and that of a State that has a transition to it
      */
     public int getTransitionBoundaryOffset()
     {
@@ -134,15 +140,16 @@ public class ParametricState
         //Create an array to hold the to-be-created Positions that will serve as members of the to-be-created State
         Position[] actualStateMemberPositionArray = new Position[memberPositionCount];
         
-        //Loop through the memberPositionBoundaryOffsetArray and memmberPositionEArray,
-        //using the values in the corresponding indices in both (along with minimalBoundary)
+        //Loop through memberPositionBoundaryOffsetArray, memberPositionEArray and memberPositionTArray,
+        //using the values in the corresponding indices of each (along with minimalBoundary)
         //to create Positions to be inserted in to the corresponding index in stateMemberPositionArray
         for(int i = 0; i < memberPositionCount; i++)
         {
             int currentBoundaryOffset = memberPositionBoundaryOffsetArray[i];
             int currentE = memberPositionEArray[i];
+            boolean currentT = memberPositionTArray[i];
             
-            actualStateMemberPositionArray[i] = new Position(minimalBoundary + currentBoundaryOffset, currentE);
+            actualStateMemberPositionArray[i] = new Position(minimalBoundary + currentBoundaryOffset, currentE, currentT);
         }
         /////
         
@@ -171,7 +178,8 @@ public class ParametricState
            ParametricState pState = (ParametricState)obj;
             
             areEqual = (Arrays.equals(this.memberPositionBoundaryOffsetArray, pState.memberPositionBoundaryOffsetArray)
-                        && Arrays.equals(this.memberPositionEArray, pState.memberPositionEArray));
+                        && Arrays.equals(this.memberPositionEArray, pState.memberPositionEArray)
+                        && Arrays.equals(this.memberPositionTArray, pState.memberPositionTArray));
         }
         
         return areEqual;
@@ -190,6 +198,7 @@ public class ParametricState
         int hash = 7;
         hash = 61 * hash + Arrays.hashCode(this.memberPositionBoundaryOffsetArray);
         hash = 61 * hash + Arrays.hashCode(this.memberPositionEArray);
+        hash = 61 * hash + Arrays.hashCode(this.memberPositionTArray);
         return hash;
     }
     
@@ -204,11 +213,11 @@ public class ParametricState
     @Override
     public String toString()
     {
-        String returnString = "i(#" + memberPositionEArray[0] +  ")";
+        String returnString = "i" + (memberPositionTArray[0] ? "(t)" : "") + "#" + memberPositionEArray[0] +  ")";
         
         int memberPositionCount = memberPositionBoundaryOffsetArray.length;
         for(int i = 1; i < memberPositionCount; i++)
-            returnString += " (i + " + memberPositionBoundaryOffsetArray[i] + ")(#" + memberPositionEArray[i] + ")";
+            returnString += " (i + " + memberPositionBoundaryOffsetArray[i] + ")" + (memberPositionTArray[i] ? "(t)" : "") + "(#" + memberPositionEArray[i] + ")";
          
         if(transitionBoundaryOffset != 0) returnString += " " + transitionBoundaryOffset;
         

@@ -87,8 +87,11 @@ public class State
      * Creates a State from the Positions serving as members in a collection of States.
      
      * @param stateCollection       a Collection of States
+     * @param maxEditDistance       an int of the maximum amount of edit operations allowed by the
+     *                              automaton associated with the States in {@code stateCollection} 
+     *                              (and commutatively, the to-be-created State)
      */
-    public State(Collection<State> stateCollection)
+    public State(Collection<State> stateCollection, int maxEditDistance)
     {   
         //HashSet which will contain Positions that will be members of the to-be-created State
         HashSet<Position> prospectiveMemberPositionCollection = new HashSet<Position>();
@@ -112,7 +115,7 @@ public class State
             {
                 Position position2 = (Position)it2.next();
                 
-                if(position2.subsumes(position1))
+                if(position2.subsumes(position1, maxEditDistance))
                 {
                     it1.remove();
                     break;
@@ -214,7 +217,7 @@ public class State
         }
         /////
 
-        return (newStateHashSet.isEmpty() ? null : new State(newStateHashSet));
+        return (newStateHashSet.isEmpty() ? null : new State(newStateHashSet, maxEditDistance));
     }
     
     
@@ -259,19 +262,22 @@ public class State
     /**
      * Determines if a given Position satisfies State membership requirements with every Position in a State. 
      
-     * @param state                         a State
-     * @param prospectivePosition           a Position which is subsumbed by a base position that
-     *                                      also subsumes all members in {@code stateMemberPositionArray}
-     * @return                              true if {@code prospectivePosition} is not subsumbed by
-     *                                      any Positions in {@code stateMemberPositionArray}, false otherwise
+     * @param state                     a State
+     * @param prospectivePosition       a Position which is subsumbed by a base position that
+     *                                  also subsumes all members in {@code stateMemberPositionArray}
+     * @param maxEditDistance           the maximum amount of edit operations allowed by the automaton associated
+     *                                  with {@code state} (and commutatively, the prospective state defined by the
+     *                                  collection of the members of {@code state} and {@code prospectivePosition})     
+     * @return                          true if {@code prospectivePosition} is not subsumbed by
+     *                                  any Positions in {@code stateMemberPositionArray}, false otherwise
      */
-    public static boolean canBeState(State state, Position prospectivePosition)
+    public static boolean canBeState(State state, Position prospectivePosition, int maxEditDistance)
     {
         //Loop through the Positions in state's member Position array, determining
         //(and returning false if) any subsume prospectivePosition
         for(Position currentMemberPosition : state.memberPositionArray)
         {
-            if(currentMemberPosition.subsumes(prospectivePosition))
+            if(currentMemberPosition.subsumes(prospectivePosition, maxEditDistance))
                 return false;
         }
         /////

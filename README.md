@@ -1,7 +1,7 @@
 ##About
 
 LevenshteinAutomaton is a fast and comprehensive Java library capable of performing automaton and non-automaton 
-based Levenshtein distance determination and neighbor calculations. The collection of related utilities affords developers 
+based Damerau-Levenshtein distance determination and neighbor calculations. The collection of related utilities affords developers 
 the luxury of choosing the most appropriate edit distance-related procedure for their needs at any given time.
  
 The library is capable of the following:
@@ -29,14 +29,14 @@ The code has also been fully tested for correct functionality and performance.
 	MDAG myMDAG = new MDAG(myArrayList);
 	/////
 	
-	//Detemine via table all of the Strings in the our dictionary that are within a edit distance  2 from "tree"  (ideal use cases: edit distances <= 2)
-	LinkedList<String> ldNeighborsLinkedList = LevenshteinAutomaton.tableFuzzySearch(1, "tree", myMDAG); //"tree", "trees"
+	//Detemine via table all of the Strings in the our dictionary that are within a edit distance 2 from "tree"  (ideal use cases: edit distances <= 2)
+	LinkedList<String> ldNeighborsLinkedList = LevenshteinAutomaton.tableFuzzySearch(2, "tree", myMDAG); //"tree", "trees"
 	
 	//Detemine via dynamic programming all of the Strings in the our dictionary that are within a edit distance  2 from "tree" (ideal use cases: low memory capacity, edit distances >= 2)
-	LinkedList<String> ldNeighborsLinkedList = LevenshteinAutomaton.fuzzySearchNonAutomaton(1, "tree", myArrayList); //"tree", "trees"
+	LinkedList<String> ldNeighborsLinkedList = LevenshteinAutomaton.fuzzySearchNonAutomaton(2, "tree", myArrayList); //"tree", "trees"
 	
 	//Detemine via automaton traversal all of the Strings in the our dictionary that are within a edit distance  2 from "tree"
-	LinkedList<String> ldNeighborsLinkedList = LevenshteinAutomaton.iterativeFuzzySearch(1, "tree", myMDAG); //"tree", "trees"
+	LinkedList<String> ldNeighborsLinkedList = LevenshteinAutomaton.iterativeFuzzySearch(2, "tree", myMDAG); //"tree", "trees"
 	
 ##Repo contents
 

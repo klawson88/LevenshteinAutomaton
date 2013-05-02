@@ -50,18 +50,11 @@ public class LevenshteinAutomaton
     private static final HashMap<Integer, HashMap<ParametricState, HashMap<AugBitSet, ParametricState>>> transitionHashMapContainerHashMap = new HashMap<>();
     
     //The State that will serve as the initial state that all automaton operations will start from
-    private static final State initialState = new State(new Position[] {new Position(0, 0)});
+    private static final State initialState = new State(new Position[] {new Position(0, 0, false)});
     
     
 
    /**
-     * Hidden LevenshteinAutomaton constructor.
-     */
-    private LevenshteinAutomaton(){}
-    
-
-    
-    /**
      * Computes the edit distance between two Strings.
      
      * @param str1      a String
@@ -81,13 +74,14 @@ public class LevenshteinAutomaton
         
         //Normalize the cases of the argument string chars; we're going 
         //to have to do some actual work if we've reached this point
-        str1 = str1.toLowerCase();
-        str2 = str2.toLowerCase();
+        //str1 = str1.toLowerCase();
+        //str2 = str2.toLowerCase();
         /////
 
         //Create arrays representing columns of the edit-distance matrix this method creates. The
         //cells will contain the edit distances between 0-based str2 substrings of increasing size and 
         //the str1 substring bounded by its (str1's) previous and currently processing chars respectively.
+        int[] ancestorMatrixCol = new int[str2Length + 1];
         int[] previousMatrixCol = new int[str2Length + 1];
         int[] currentMatrixCol = new int[str2Length + 1];
         /////
@@ -120,17 +114,34 @@ public class LevenshteinAutomaton
                 //and the previous str1 substring and increment it to represent a hypothetical necessary insertion to str2
                 int insertionCost = previousMatrixCol[j + 1] + 1;
                 
+                //Determine the edit distance between the currently processing chars in str1 and str2
+                int curCharEditDistance = (str1.charAt(i) == str2.charAt(j) ? 0 : 1);
+                
                 //Take the edit distance calculated between the previous str2 and str1 substrings and
                 //increment it only if their currently processing chars differ (hypothetical necessary substitution)
-                int substitutionCost = previousMatrixCol[j] + (str1.charAt(i) == str2.charAt(j) ? 0 : 1);
+                int substitutionCost = previousMatrixCol[j] + curCharEditDistance;
                 
+                //Determine the smallest edit operation cost among those currently associated with a deletion, insertion and substitution
                 int minEditOperationCost = Math.min(deletionCost, insertionCost);
-                currentMatrixCol[j + 1] = Math.min(minEditOperationCost, substitutionCost);
+                minEditOperationCost = Math.min(minEditOperationCost, substitutionCost);
+                /////
+                
+                //If the previous and currently processing chars of both strings are transposed, determine the smallest
+                //edit operation cost between minEditOperationCost and that associated with a hypothetical transposition
+                if(i > 0 && j > 0 && str1.charAt(i) == str2.charAt(j - 1) && str1.charAt(i - 1) == str2.charAt(j))
+                    minEditOperationCost = Math.min(minEditOperationCost, ancestorMatrixCol[j-1] + curCharEditDistance);
+                
+                currentMatrixCol[j + 1] = minEditOperationCost;
             }
             /////
 
             //Copy the elements of currentMatrixCol to previousMatrixCol, priming them for the next iteration
-            for (int j = 0; j < previousMatrixCol.length; j++) previousMatrixCol[j] = currentMatrixCol[j];
+            for (int j = 0; j < previousMatrixCol.length; j++)
+            {
+                ancestorMatrixCol[j] = previousMatrixCol[j];
+                previousMatrixCol[j] = currentMatrixCol[j];
+            }
+               
         }
         /////
  
@@ -173,7 +184,7 @@ public class LevenshteinAutomaton
         int automatonStringCharCount = str1.length();
         int dictionaryStringCharCount = str2.length();
         
-        //Loop through the chars in dictionaryString, using each along with maxEditDistance and automatonString
+        //Loop through the chars in str2, using each along with maxEditDistance and automatonString
         //to execute a transition on currentState until either a failure or accept State is reached
         for(int i = 0; i < dictionaryStringCharCount; i++)
         {           
@@ -188,6 +199,39 @@ public class LevenshteinAutomaton
     
     
     /**
+     * Procures with a collection of commonly based States and a given position, 
+     * those States which can be formed using the given position and the set 
+     * of member positions appearing in the aforementioned State collection.
+     
+     * @param basedStateLinkedList      a LinkedList of States collectively based by a given Position
+     * @param p                         a Position subsumed by the same Position which bases 
+     *                                  each of the elements in {@code basedStateLinkedList}    
+     */
+    private static void procureNewBasedStates(LinkedList<State> basedStateLinkedList, Position p, int maxEditDistance)
+    {
+        //LinkedList which will hold all the States based by basePosition that contain currentPosition
+        LinkedList<State> newBasedStateLinkedList = new LinkedList<State>();
+
+        //Add a State with currentPosition as its sole member to newBasedLinkedList
+        newBasedStateLinkedList.add(new State(new Position[] {p}));
+
+        //Loop through the States in basedStateLinkedList, and for each, determine if its 
+        //members Positions can form a State with currentPosition. If so, create a new State
+        //with these set of Positions as members and add it to newBasedLinkedList
+        for(State currentState : basedStateLinkedList)
+        {
+            if(State.canBeState(currentState, p, maxEditDistance))
+                newBasedStateLinkedList.add(new State(currentState, p));
+        }
+        /////
+
+        //Add all the newly created states to basedStateLinkedList
+        basedStateLinkedList.addAll(newBasedStateLinkedList);
+    }
+    
+    
+    
+    /**
      * Procures the collection of states that are based by a position,
      * given a maximum relevant subword size of an automaton state and
      * the max edit distance of an automaton.
@@ -196,7 +240,7 @@ public class LevenshteinAutomaton
      * @param maxRelevantSubwordSize        an int denoting the max relevant subword size of a State
      *                                      in a Levenshtein automaton (based on {@code maxEditDistance}
      * @param maxEditDistance               an int denoting the maximum amount of edit 
-     *                                      operations allowed by specific automaton
+     *                                      operations allowed by a specific automaton
      * @return                              a LinkedList of States that are based by basePosition
      */
     private static LinkedList<State> procureBasedStates(Position basePosition, int maxRelevantSubwordSize, int maxEditDistance)
@@ -211,30 +255,23 @@ public class LevenshteinAutomaton
         {  
             for(int i = 0; i < maxRelevantSubwordSize; i++)
             {
-                //Create a position from the current processing edit distance and boundary
-                Position currentPosition = new Position(i, e);
-
-                if(basePosition.subsumes(currentPosition))
+                //Create a standard position from the current processing edit distance and boundary. If it is
+                //subsumed by basePosition, use it to insert States in to basedStateLinkedList that can be formed
+                //solely by it and the set of Positions appearing as members in the elements of basedStateLinkedList 
+                Position currentPosition = new Position(i, e, false);
+                if(basePosition.subsumes(currentPosition, maxEditDistance))
+                    procureNewBasedStates(basedStateLinkedList, currentPosition, maxEditDistance);
+                /////
+                
+                //If the t-position with the current processing edit distance and boundary is subsumed by basePosition,
+                //use it to insert States in to basedStateLinkedList in a manner identical to that used above
+                if(i <= (maxRelevantSubwordSize - 2))
                 {
-                    //LinkedList which will hold all the States based by basePosition that contain currentPosition
-                    LinkedList<State> newBasedStateLinkedList = new LinkedList<State>();
-                    
-                    //Add a State with currentPosition as its sole member to newBasedLinkedList
-                    newBasedStateLinkedList.add(new State(new Position[] {currentPosition}));
-                    
-                    //Loop through the States in basedStateLinkedList, and for each, determine if its 
-                    //members Positions can form a State with currentPosition. If so, create a new State
-                    //with these set of Positions as members and add it to newBasedLinkedList
-                    for(State currentState : basedStateLinkedList)
-                    {
-                        if(State.canBeState(currentState, currentPosition))
-                            newBasedStateLinkedList.add(new State(currentState, currentPosition));
-                    }
-                    /////
-                    
-                    //Add all the newly created states to basedStateLinkedList
-                    basedStateLinkedList.addAll(newBasedStateLinkedList);
+                    Position currentTPosition = new Position(i, e, true);   
+                    if(basePosition.subsumes(currentPosition, maxEditDistance))
+                        procureNewBasedStates(basedStateLinkedList, currentTPosition, maxEditDistance);
                 }
+                /////
             }
         }
         /////
@@ -255,7 +292,7 @@ public class LevenshteinAutomaton
      * @return                              a HashSet of Parametric states collectively representing the forms of every
      *                                      State in the automaton defined by maxRelevantSubwordSize and maxEditDistance
      */
-    public static HashSet<ParametricState> procureParametricStates(int maxRelevantSubwordSize, int maxEditDistance)
+    private static HashSet<ParametricState> procureParametricStates(int maxRelevantSubwordSize, int maxEditDistance)
     {
         //HashSet which will contain ParametricState objects representing the forms of every 
         //state in the automaton defined by maxRelevantSubwordSize and maxEditDistance
@@ -267,7 +304,7 @@ public class LevenshteinAutomaton
         for(int i = 0; i < maxRelevantSubwordSize; i++)                         
         {
             //Create a base state from the current relevant subword size
-            Position basePosition = new Position(i, 0);
+            Position basePosition = new Position(i, 0, false);
             
             //Get the States based by basePosition
             LinkedList<State> basedStateLinkedList = procureBasedStates(basePosition, maxRelevantSubwordSize, maxEditDistance);
@@ -287,7 +324,7 @@ public class LevenshteinAutomaton
      
      * @param maxBitCount       an int denoting the maximum bit count of a permutation to be produced
      * @return                  an ArrayList of AugBitSets that collectively represent the set of 
-     *                          binary permutations of bit counts from 0 to {@code maxBitCount{
+     *                          binary permutations of bit counts from 0 to {@code maxBitCount}
      */
     private static ArrayList<AugBitSet> produceBinaryPermutations(int maxBitCount)
     {
@@ -334,13 +371,13 @@ public class LevenshteinAutomaton
     
 
     /**
-     * Creates a Map which containing the transition relationships between the 
-     * parametrized versions of States in an automaton with a given max edit distance.
+     * Creates a Map containing the transition relationships between the parameterized
+     * versions of States in an automaton defined by a given max edit distance.
      
      * @param maxEditDistance       an int denoting the maximum amount of edit 
      *                              operations allowed by specific automaton
      */
-    public static void createParametricStateTransitionMap(int maxEditDistance)
+    private static void createParametricStateTransitionMap(int maxEditDistance)
     {
         if(!transitionHashMapContainerHashMap.containsKey(maxEditDistance))     //if the transition map for maxEditDistance does not yet exist
         {
@@ -536,7 +573,7 @@ public class LevenshteinAutomaton
      * Searches a collection of Strings for those which are within a given edit distance from a particular String.
      * 
      * This version of fuzzy search uses a pre-computed map of transitions, and is the fastest method for max 
-     * edit distances less than or equal 2. Greater max edit distances would require huge amounts of memory and 
+     * edit distances less than or equal 2. Greater max edit distances require huge amounts of memory and 
      * are not guaranteed to be faster than a non-automaton approach, so use in those cases is discouraged.
      
      * @param maxEditDistance       an int denoting the maximum amount of edit operations that can separate
@@ -548,7 +585,7 @@ public class LevenshteinAutomaton
      */
     public static LinkedList<String> tableFuzzySearch(int maxEditDistance, String automatonString, MDAG mdag)
     {
-        //LinkedList which will contain Strings in mdag that are within maxEditDistance away of automatonString
+        //LinkedList which will contain Strings in mdag that are within maxEditDistance of automatonString
         LinkedList<String> resultStringLinkedList = new LinkedList<String>();
         
         //HashMap containing the transition relationships between the parametric states of an automaton with maxEditDistance

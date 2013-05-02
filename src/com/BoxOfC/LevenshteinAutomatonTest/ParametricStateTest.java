@@ -59,10 +59,12 @@ public class ParametricStateTest
 
             for(int i = 0; i < randomMemberCount; i++)
             {
-                int E =  baseE + (i % 2 == 0 ? (int)(Math.random() * offset) : 0);
+                boolean isEvenIteration = (i % 2 == 0);
+                
+                int E =  baseE + (isEvenIteration ? (int)(Math.random() * offset) : 0);
                 baseI += offset;
 
-                memberPositionArrayList.add(new Position(baseI, E));
+                memberPositionArrayList.add(new Position(baseI, E, isEvenIteration));
             }
             
             Collections.sort(memberPositionArrayList);
